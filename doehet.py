@@ -1,16 +1,18 @@
 #! /usr/bin/env python3
 
+# This code was written by Folkert van Heusden <mail@vanheusden.com> for NURDspace.
+# Released under the MIT license.
+
 from dateutil.parser import parse
 import serial
 import sys
+import time
 
-
-port = '/dev/ttyACM3'
-pin = '0000'
 
 class sms_modem:
     def __init__(self, port):
         self.handle = serial.Serial(port, timeout=2)
+        self.handle.reset_input_buffer()
 
     def _send_receive(self, command):
         self.handle.write('\r\n'.encode('ascii'))
@@ -147,7 +149,10 @@ class sms_modem:
         return False
 
 
+port = '/dev/ttyACM3'
+pin = '0000'
+
 modem = sms_modem(port)
 print(modem.begin(pin))
 print(modem.poll_storage('SM', False))  # SM=sim memory
-print(modem.transmit_message('+31641278122', ('Dit is een test.', 'Poep is vies.', 'Absoluut.')))
+#print(modem.transmit_message('+31641278122', ('Dit is een test.', 'Poep is vies.', 'Absoluut.')))
