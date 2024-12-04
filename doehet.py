@@ -55,12 +55,15 @@ class sms_modem:
         return True
 
     def begin(self, pin):
+        self.handle.write(chr(26).encode('ascii'))  # ^Z to end any pending message
+
         return self._batch((
-            ('ATZ', False),
-            ('AT+CMEE=0', False),
+            ('ATZ', False),  # reset modem
+            ('ATE1', False),  # local echo on
+            ('AT+CMEE=0', False),  # disable extended errors
             # modems sometimes say error when the pin was already entered
-            (f'AT+CPIN="{pin}"', True),
-            ('AT+CMGF=1', False),
+            (f'AT+CPIN="{pin}"', True),  # set pin
+            ('AT+CMGF=1', False),  # go to SMS mode
             )
                            )
 
@@ -109,6 +112,42 @@ class sms_modem:
 
         return messages
 
+    def transmit_message(self, victim, text):
+        # special case :-(
+        cmd = f'AT+CMGS="{victim}"\r\n'
+        self.handle.write(cmd.encode('ascii'))
+
+        for line in text:
+            if chr(26) in line:  # prevent ^Z codes (as that would end the msg)
+                continue
+            buffer = ''
+            while True:
+                # wait for '> '
+                c = self.handle.read(1)
+                if c == None:  # time out
+                    return False
+                buffer += chr(int.from_bytes(c))
+                if buffer[-4:] == '\r\n> ':
+                    break
+
+            self.handle.write((line + '\r\n').encode('ascii'))
+
+        self.handle.write(chr(26).encode('ascii'))  # ^Z to end the message
+
+        rc = ''
+        while True:
+            c = self.handle.read(1)
+            if c == None:
+                return False
+
+            rc += chr(int.from_bytes(c))
+            if '\r\nOK\r\n' in rc:
+                return True
+
+        return False
+
+
 modem = sms_modem(port)
-modem.begin(pin)
+print(modem.begin(pin))
 print(modem.poll_storage('SM', False))  # SM=sim memory
+print(modem.transmit_message('+31641278122', ('Dit is een test.', 'Poep is vies.', 'Absoluut.')))
