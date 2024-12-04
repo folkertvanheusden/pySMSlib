@@ -145,6 +145,8 @@ class sms_modem:
             rc += chr(int.from_bytes(c))
             if '\r\nOK\r\n' in rc:
                 return True
+            if '\r\nERROR\r\n' in rc:
+                return False
 
         return False
 
